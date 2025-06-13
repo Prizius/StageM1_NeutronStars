@@ -1,19 +1,33 @@
 import numpy as np
 from matplotlib import pyplot as plt
-import scipy
-from tqdm import tqdm
-from time import time 
+
+
+## PARAMETERS
+
 
 pi = np.pi
+
 hbar = 1.054571818e-34  # Js
 G = 6.673e-11  # m3/kg/s2
 c = 2.9979e8  # m/s
-Ms = 1.989e30  # kg
 mn = 1.674927500e-27  # kg
+
+Ms = 1.989e30  # kg  mass unit
 R = 1000  # m  length unit
-R_max = 100*R
-P_lim = 0
-dr = 1e-2
+eps_0 = 2.0852e25 * 1e9  # 1e9 MeV^4  energy density unit
+
+R_max = 100*R  # Maximum radius, if goes over it, we consider the simulation to diverge
+P_lim = 0  # value of P to stop comutation (if need to stop earlier)
+dr = 1e-2  # Step size
+
+
+# Dimentionless factors
+A = 4*pi * R**3 * eps_0 / Ms / c / c
+C = G * Ms / R / c / c
+
+
+## LOADING EOS
+
 
 EOS_DATA_FERMI = np.load("./data/eos_fermi.npz")
 EOS_DATA_TEST = np.load("./data/eos_test.npz")
@@ -31,36 +45,19 @@ EOS_DATA_QCD_NNLO_3 = np.load("./data/eos_qcd_nnlo_X3.npz")
 EOS_DATA_QCD_NNLO_4 = np.load("./data/eos_qcd_nnlo_X4.npz")
 
 EOS_DATA_NJL = np.load("./data/eos_njl.npz")
-EOS_DATA_NJL_0 = np.load("./data/eos_njl_set0.npz")
-EOS_DATA_NJL_1 = np.load("./data/eos_njl_set1.npz")
-EOS_DATA_NJL_2 = np.load("./data/eos_njl_set2.npz")
-EOS_DATA_NJL_3 = np.load("./data/eos_njl_set3.npz")
-
-
-def theta(x):
-    return 1/8 * (x * np.sqrt(1 + x**2) * (1 + 2*x**2) - np.log(x + np.sqrt(1 + x**2)))
-
-
-def phi(x):
-    return 3/8 * (x * np.sqrt(1 + x**2) * (2/3*x**2 - 1) + np.log(x + np.sqrt(1 + x**2)))
 
 
 def eos(P, EOS_DATA):
+    """ Computes the interpolated value of epsilon for the given value of P, from the data in EOS_DATA """
+
+    # Prevent extrapolation
     if (P >= np.max(EOS_DATA["P"])).any():
-        raise ValueError(f"Il faut des P plus haut coco {np.max(EOS_DATA["P"])}")
+        raise ValueError(f"Il faut des P plus haut : {np.max(EOS_DATA["P"])}")
     if np.logical_and(P > 0, P <= np.min(EOS_DATA["P"])).any():
-         raise ValueError(f"Il faut des P plus petits loulou {np.max(EOS_DATA["P"])}")
+         raise ValueError(f"Il faut des P plus petits : {np.max(EOS_DATA["P"])}")
 
     return np.interp(P, EOS_DATA["P"], EOS_DATA["eps"])
 
-
-
-n0 = mn**3 * c**3 / 3 / pi / pi / hbar**3
-eps_0 = 2.0852e25 * 1e9  # 1e9 MeV^4
-
-A = 4*pi * R**3 * eps_0 / Ms / c / c
-C = G * Ms / R / c / c
-print(A, C)
 
 def evolution_function(current_states, EOS_DATA):
     r, m, P, _,= current_states.T
@@ -100,13 +97,10 @@ def solve_tov(EOS_DATA, Pc):
         i += 1
         states[:, i, :] = evolution_function(current_states, EOS_DATA)
         current_states = states[:, i, :]
+    
+    # Debug
     if i == N_max - 1:
-        plt.figure()
-        # plt.plot(states[0, :, 0], states[0, :, 2]/states[0, 0, 2])
-        plt.plot(states[-1, :, 0], states[-1, :, 2]/states[-1, 0, 2])
-        plt.title("ça a pas convergé assez vite...")
-        plt.show()
-        raise ValueError(f"ça a pas convergé poto {states[-1, i, 2]}")
+        raise ValueError(f"Ca n'a pas convergé {states[-1, i, 2]}")
     if i < 5:
         raise ValueError("Trop trop trop rapide là")
 
@@ -128,14 +122,12 @@ def compute_stars_structure(EOS_DATA, Pc, args="", **kwargs):
 
 Pc = 10**np.linspace(-5, 5, 200)
 
-# Pc_test = 10**np.linspace(-2, 3, 200)
 
 
 plt.figure()
 # compute_stars_structure(EOS_DATA_FERMI, Pc, "k", label="Ideal Fermi gas")
 # compute_stars_structure(EOS_DATA_FERMI_CL, Pc, "r", label="Classical limit")
 # compute_stars_structure(Pc, label="UR")
-# compute_stars_structure(EOS_DATA_TEST, Pc_test, label="test")
 # compute_stars_structure(EOS_DATA_QCD_NLO_1, Pc, "r--", label="QCD NLO (X=1)")
 # compute_stars_structure(EOS_DATA_QCD_NLO_2, Pc, "g--", label="QCD NLO (X=2)")
 # compute_stars_structure(EOS_DATA_QCD_NLO_3, Pc, label="QCD NLO (X=3)")
@@ -145,12 +137,11 @@ plt.figure()
 # compute_stars_structure(EOS_DATA_QCD_NNLO_3, Pc, label="QCD NNLO (X=3)")
 # compute_stars_structure(EOS_DATA_QCD_NNLO_4, Pc, "b", label="QCD NNLO (X=4)")
 compute_stars_structure(EOS_DATA_NJL, Pc, label="NJL")
-# compute_stars_structure(EOS_DATA_NJL_0, Pc, label="NJL (set 1)")
-# compute_stars_structure(EOS_DATA_NJL_1, Pc, label="NJL (set 2)")
-# compute_stars_structure(EOS_DATA_NJL_2, Pc, label="NJL (set 3)")
-# compute_stars_structure(EOS_DATA_NJL_3, Pc, label="NJL (set 4)")
 plt.xlabel("Radius [km]")
 plt.ylabel("Mass [$M_\odot$]")
+
+
+## Making plots prettier
 
 def rot_lim(nuk, m_max=100):
     m = np.zeros(10000)
@@ -160,15 +151,15 @@ def rot_lim(nuk, m_max=100):
     r[-1] = r[-2]
     return r, m
 
-Rmax = 20
-Mmax = 3
+Rmax = 10
+Mmax = 1.5
 
 plt.fill(*rot_lim(641), facecolor="lightblue", edgecolor="none")
 plt.fill([0, 3*G*Ms/R/c/c*Mmax*1.3, 0], [0, 1.3*Mmax, 1.3*Mmax], facecolor="lightgray", edgecolor="none")
 plt.fill([0, 2*G*Ms/R/c/c*Mmax*1.3, 0], [0, 1.3*Mmax, 1.3*Mmax], facecolor="gray", edgecolor="none")
 
-# plt.xlim((0, Rmax*1.2))
-# plt.ylim((0, Mmax*1.2))
+plt.xlim((0, Rmax*1.2))
+plt.ylim((0, Mmax*1.2))
 
 plt.legend()
 plt.show()

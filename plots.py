@@ -1,8 +1,5 @@
 import numpy as np
 from matplotlib import pyplot as plt
-import scipy
-import random as rd
-import time
 from eos_computation import compute_mass_gap
 
 

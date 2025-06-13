@@ -1,17 +1,10 @@
 import numpy as np
 from matplotlib import pyplot as plt
-import scipy
-import random as rd
-import time
-
-import scipy.integrate
-import scipy.optimize
 
 
 pi = np.pi
 pi2 = pi**2
 mn = 940  # MeV
-
 
 
 SAVE = True
@@ -155,6 +148,7 @@ def mass_gap_eq(M, mu, set=1, chiral_limit=False):
 
 
 def compute_mass_gap(mu, set=1, chiral_limit=False):
+    """ Using a dichotomy method as scipy did not want to cooperate """
     _, _, m0, Mvac, _ = DATA[set]
 
     m_down = m0
@@ -182,25 +176,18 @@ def compute_mass_gap(mu, set=1, chiral_limit=False):
 def compute_eos_njl(set=1):
     L0, GL2, m0, Mvac, B = DATA[set]
 
-    # mu = 10**np.linspace(2, 5, 5000)
-    mu = np.linspace(0, 1000, 1000)
+    mu = 10**np.linspace(2, 5, 5000)
+    # mu = np.linspace(0, 1000, 1000)
     mg = np.array([compute_mass_gap(mmu, set) for mmu in mu])
 
     Mvac = compute_mass_gap(0, set)
     pF = np.where(mu < mg, 0, np.sqrt(mu**2/mg**2 - 1))
 
-    n = Nc*Nf/3/pi * pF**3
-    # P_NJL = Nc*Nf/pi2 * (-mg**4 * chi(pF/mg) + mg**4 * chi(L0/mg) - Mvac**4 * chi(L0/Mvac) + mu*pF**3/3) - L0**2 * ((mg - m0)**2 + (Mvac - m0)**2)/2/GL2
-
     PF = mg**4/3/pi2 * phi(pF/mg)
     P_NJL = Nc*Nf*PF + ((Mvac - m0)**2 - (mg - m0)**2)*L0**2 /2/GL2 + Nc*Nf/pi2 * (mg**4 * chi(L0/mg) - Mvac**4 * chi(L0/Mvac))
-    # eps_NJL = -P_NJL + mu*n
     eps_NJL = Nc*Nf*mg**4/pi2 * chi(pF/mg) - ((Mvac - m0)**2 - (mg - m0)**2)*L0**2 /2/GL2 - Nc*Nf/pi2 * (mg**4 * chi(L0/mg) - Mvac**4 * chi(L0/Mvac)) + B/130.2
 
-    plt.figure()
-    plt.plot(mu, mg)
-    plt.show()
-    # save_eos(f"njl", P_NJL, eps_NJL)
+    save_eos(f"njl", P_NJL, eps_NJL)
 
 
 
@@ -221,10 +208,4 @@ if __name__ == "__main__":
     # compute_eos_nnlo(3)
     # compute_eos_nnlo(4)
 
-    # plt.figure()
-    compute_eos_njl(0)
-    # compute_eos_njl(1)
-    # compute_eos_njl(2)
-    # compute_eos_njl(3)
-    # plt.legend()
-    # plt.show()
+    compute_eos_njl(1)
